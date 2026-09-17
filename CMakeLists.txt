@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16)
 project(nfs_recompiled LANGUAGES C CXX ASM)
 
 # options
@@ -31,14 +31,6 @@ else()
     set(TARGET_SWITCH FALSE)
 endif()
 
-if (MSVC)
-    add_compile_options(/W4 /WX)
-elseif(TARGET_SWITCH)
-    add_compile_options(-Wall -Wextra -Wstrict-aliasing=2)
-else()
-    add_compile_options(-Wall -Wextra -Werror -Wstrict-aliasing=2)
-endif()
-
 # When building for Windows we have a local copy of SDL3 under the
 # `sdl3` subdirectory.  Point CMake at it so find_package() will
 # locate the bundled config file automatically.
@@ -48,18 +40,60 @@ if(TARGET_WINDOWS)
     set(SDL3_DIR "${CMAKE_SOURCE_DIR}/sdl3/cmake" CACHE PATH "SDL3 CMake directory")
 endif()
 
-find_package(SDL3 REQUIRED)
 if(TARGET_SWITCH)
+    foreach(required_file
+            "${DEVKITPRO}/libnx/include/switch.h"
+            "${DEVKITPRO}/tools/bin/elf2nro"
+            "${DEVKITPRO}/tools/bin/nacptool")
+        if(NOT EXISTS "${required_file}")
+            message(FATAL_ERROR
+                "Required Nintendo Switch build dependency not found: ${required_file}\n"
+                "Install or update devkitA64, libnx, and switch-tools.")
+        endif()
+    endforeach()
+
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(NXVK_GL REQUIRED nxvk-gl)
+    pkg_check_modules(NXVK_GL QUIET nxvk-gl)
+    if(NOT NXVK_GL_FOUND)
+        message(FATAL_ERROR
+            "nxvk-gl was not found in the Switch portlibs prefix. Install "
+            "nxvk configuring.")
+    endif()
+
+    find_package(Git REQUIRED)
+    include(FetchContent)
+
+    set(SDL_SHARED OFF CACHE BOOL "Build a shared SDL library" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "Build a static SDL library" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "Build the SDL test library" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "Build the SDL test programs" FORCE)
+    set(SDL_EXAMPLES OFF CACHE BOOL "Build the SDL example programs" FORCE)
+    set(SDL_INSTALL OFF CACHE BOOL "Generate SDL install rules" FORCE)
+    set(SDL_UNINSTALL OFF CACHE BOOL "Generate the SDL uninstall target" FORCE)
+
+    FetchContent_Declare(sdl3_switch
+        GIT_REPOSITORY https://github.com/SnepOMatic/SDL3-Switch.git
+        GIT_TAG 6110ab7f8f1c131d2801689c52f3918a9e44287e
+        GIT_PROGRESS TRUE)
+    FetchContent_MakeAvailable(sdl3_switch)
+
     add_library(nfs_nxvk_gl INTERFACE)
     target_include_directories(nfs_nxvk_gl INTERFACE ${NXVK_GL_INCLUDE_DIRS})
     target_compile_options(nfs_nxvk_gl INTERFACE ${NXVK_GL_CFLAGS_OTHER})
     target_link_libraries(nfs_nxvk_gl INTERFACE ${NXVK_GL_LDFLAGS})
     set(OPENGL_TARGET nfs_nxvk_gl)
 else()
+    find_package(SDL3 REQUIRED)
     find_package(OpenGL REQUIRED)
     set(OPENGL_TARGET OpenGL::GL)
+endif()
+
+if (MSVC)
+    add_compile_options(/W4 /WX)
+elseif(TARGET_SWITCH)
+    add_compile_options(-Wall -Wextra -Wstrict-aliasing=2)
+else()
+    add_compile_options(-Wall -Wextra -Werror -Wstrict-aliasing=2)
 endif()
 
 # prefer modern imported targets if available
@@ -72,10 +106,14 @@ endif()
 
 # Keep SDL's non-graphics dependencies and let nxvk-gl satisfy SDL's EGL calls.
 if(TARGET_SWITCH AND TARGET SDL3::SDL3-static)
-    get_target_property(SDL3_SWITCH_LIBS SDL3::SDL3-static INTERFACE_LINK_LIBRARIES)
+    get_target_property(SDL3_STATIC_TARGET SDL3::SDL3-static ALIASED_TARGET)
+    if(NOT SDL3_STATIC_TARGET)
+        set(SDL3_STATIC_TARGET SDL3::SDL3-static)
+    endif()
+    get_target_property(SDL3_SWITCH_LIBS ${SDL3_STATIC_TARGET} INTERFACE_LINK_LIBRARIES)
     list(FILTER SDL3_SWITCH_LIBS EXCLUDE REGEX
         "^\\$<LINK_ONLY:(EGL|glapi|drm_nouveau)>$")
-    set_property(TARGET SDL3::SDL3-static PROPERTY
+    set_property(TARGET ${SDL3_STATIC_TARGET} PROPERTY
         INTERFACE_LINK_LIBRARIES "${SDL3_SWITCH_LIBS}")
 endif()
 
@@ -177,8 +215,10 @@ function(add_game_exe name)
             "${CMAKE_SOURCE_DIR}/src/lib/switch/nxvk_compat.c")
         if(name STREQUAL "nfs2se")
             set(game_title "Need for Speed II SE")
+            set(game_icon "${CMAKE_SOURCE_DIR}/assets/icons/nfs2se.jpg")
         else()
             set(game_title "Need for Speed III HP")
+            set(game_icon "${CMAKE_SOURCE_DIR}/assets/icons/nfs3hp.jpg")
         endif()
         set(nacp_file "${CMAKE_CURRENT_BINARY_DIR}/${name}.nacp")
         nx_generate_nacp(
@@ -186,7 +226,9 @@ function(add_game_exe name)
             NAME "${game_title}"
             AUTHOR "PalindromicBreadLoaf"
             VERSION "1.0.0")
-        nx_create_nro(${name} NACP "${nacp_file}")
+        nx_create_nro(${name}
+            NACP "${nacp_file}"
+            ICON "${game_icon}")
     endif()
 endfunction()
 

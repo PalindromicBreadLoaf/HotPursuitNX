@@ -2,8 +2,10 @@
 #include <lib/file.h>
 #include <lib/registry.h>
 #include <nfs3hp.h>
+#include <cstdlib>
 #include <string>
 
+#ifndef __SWITCH__
 static std::string getExeDirectory(const char* argv0)
 {
     std::string path(argv0);
@@ -14,9 +16,17 @@ static std::string getExeDirectory(const char* argv0)
         return path.substr(0, pos + 1);
     return "./";
 }
+#endif
 
 int main(int argc, char* argv[])
 {
+#ifdef __SWITCH__
+    (void)argc;
+    (void)argv;
+    setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1);
+    win32::File::setDataDirectory("sdmc:/switch/nfs3hp/");
+    win32::File::setCdDirectory("sdmc:/switch/nfs3hp/");
+#else
     if (argc >= 3)
     {
         win32::File::setDataDirectory(argv[1]);
@@ -33,6 +43,7 @@ int main(int argc, char* argv[])
         win32::File::setDataDirectory(exeDir.c_str());
         win32::File::setCdDirectory(exeDir.c_str());
     }
+#endif
     SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK);
     {
         nfs3hp::Application app("nfs3.exe");

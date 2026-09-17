@@ -1,9 +1,9 @@
 #include <lib/memmap.h>
 #include <SDL3/SDL.h>
 #include <vector>
-#ifdef _WIN32
+#if defined(_WIN32)
 # include <windows.h>
-#else
+#elif !defined(__SWITCH__)
 # include <sys/mman.h>
 #endif
 #include <lib/mutex.h>
@@ -28,6 +28,11 @@ static void* alloc(x86::reg32 size)
 {
 #ifdef _WIN32
     return VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+#elif defined(__SWITCH__)
+    void* p = aligned_alloc(4096, size);
+    NFS2_ASSERT(p);
+    memset(p, 0, size);
+    return p;
 #else
     void* p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     NFS2_ASSERT(p != MAP_FAILED);
@@ -40,6 +45,9 @@ static void dealloc(void* mem, x86::reg32 size)
 #ifdef _WIN32
     NFS2_USE(size);
     VirtualFree(mem, 0, MEM_RELEASE);
+#elif defined(__SWITCH__)
+    NFS2_USE(size);
+    free(mem);
 #else
     munmap(mem, size);
 #endif
@@ -47,7 +55,7 @@ static void dealloc(void* mem, x86::reg32 size)
 
 static void protect(void* mem, x86::reg32 size, bool read, bool write)
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__SWITCH__)
     NFS2_USE(mem);
     NFS2_USE(size);
     NFS2_USE(read);
@@ -73,7 +81,8 @@ MemMap::MemMap(x86::reg32 size)
     m_blockCount = ((size+4095) & ~4095u) / 4096;
     NFS2_ASSERT(m_blockCount >= 1);
     s_lock->lock();
-    for (x86::reg32 b = 0; b < s_blockCount - m_blockCount; /* nothing */)
+    NFS2_ASSERT(m_blockCount <= s_blockCount);
+    for (x86::reg32 b = 0; b <= s_blockCount - m_blockCount; /* nothing */)
     {
         bool success = true;
         for (x86::reg32 s = b; s < b + m_blockCount; ++s)
@@ -91,6 +100,7 @@ MemMap::MemMap(x86::reg32 size)
             break;
         }
     }
+    NFS2_ASSERT(m_block != x86::reg32(-1));
     for (x86::reg32 s = m_block; s < m_block + m_blockCount; ++s)
     {
         s_blocks[s] = 1;
@@ -98,7 +108,6 @@ MemMap::MemMap(x86::reg32 size)
     s_memMaps.push_back(this);
     s_lock->unlock();
     protect(s_memory + s_sectionSize + s_blockSize + m_block * 4096, m_blockCount*4096, true, true);
-    NFS2_ASSERT(m_block != x86::reg32(-1));
 }
 
 MemMap::~MemMap()

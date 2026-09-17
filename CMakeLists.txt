@@ -25,8 +25,16 @@ else()
     set(TARGET_WINDOWS FALSE)
 endif()
 
+if(NINTENDO_SWITCH OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(TARGET_SWITCH TRUE)
+else()
+    set(TARGET_SWITCH FALSE)
+endif()
+
 if (MSVC)
     add_compile_options(/W4 /WX)
+elseif(TARGET_SWITCH)
+    add_compile_options(-Wall -Wextra -Wstrict-aliasing=2)
 else()
     add_compile_options(-Wall -Wextra -Werror -Wstrict-aliasing=2)
 endif()
@@ -41,7 +49,18 @@ if(TARGET_WINDOWS)
 endif()
 
 find_package(SDL3 REQUIRED)
-find_package(OpenGL REQUIRED)
+if(TARGET_SWITCH)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(NXVK_GL REQUIRED nxvk-gl)
+    add_library(nfs_nxvk_gl INTERFACE)
+    target_include_directories(nfs_nxvk_gl INTERFACE ${NXVK_GL_INCLUDE_DIRS})
+    target_compile_options(nfs_nxvk_gl INTERFACE ${NXVK_GL_CFLAGS_OTHER})
+    target_link_libraries(nfs_nxvk_gl INTERFACE ${NXVK_GL_LDFLAGS})
+    set(OPENGL_TARGET nfs_nxvk_gl)
+else()
+    find_package(OpenGL REQUIRED)
+    set(OPENGL_TARGET OpenGL::GL)
+endif()
 
 # prefer modern imported targets if available
 if(TARGET SDL3::SDL3)
@@ -49,6 +68,15 @@ if(TARGET SDL3::SDL3)
 else()
     include_directories(${SDL3_INCLUDE_DIRS})
     set(SDL3_LIB_TARGET ${SDL3_LIBRARIES})
+endif()
+
+# Keep SDL's non-graphics dependencies and let nxvk-gl satisfy SDL's EGL calls.
+if(TARGET_SWITCH AND TARGET SDL3::SDL3-static)
+    get_target_property(SDL3_SWITCH_LIBS SDL3::SDL3-static INTERFACE_LINK_LIBRARIES)
+    list(FILTER SDL3_SWITCH_LIBS EXCLUDE REGEX
+        "^\\$<LINK_ONLY:(EGL|glapi|drm_nouveau)>$")
+    set_property(TARGET SDL3::SDL3-static PROPERTY
+        INTERFACE_LINK_LIBRARIES "${SDL3_SWITCH_LIBS}")
 endif()
 
 # SDL3main provides the WinMain→main entry-point shim required on Windows.
@@ -85,13 +113,13 @@ file(GLOB LIB_CPP_SOURCES
 
 # x87.asm provides 80-bit extended-precision FPU helpers and is only needed
 # (and only supported) on Linux with WITH_PEDANTIC_FPU=ON.
-if(WITH_PEDANTIC_FPU AND TARGET_WINDOWS)
+if(WITH_PEDANTIC_FPU AND (TARGET_WINDOWS OR TARGET_SWITCH))
     message(FATAL_ERROR
-        "WITH_PEDANTIC_FPU is not supported on Windows: the x87 NASM helper "
-        "relies on Linux-specific 80-bit long double ABI conventions.")
+        "WITH_PEDANTIC_FPU is not supported on this target: the x87 NASM "
+        "helper relies on Linux-specific x86-64 ABI conventions.")
 endif()
 
-if(WITH_PEDANTIC_FPU AND NOT TARGET_WINDOWS)
+if(WITH_PEDANTIC_FPU AND NOT TARGET_WINDOWS AND NOT TARGET_SWITCH)
     set(X87_OBJ "${CMAKE_CURRENT_BINARY_DIR}/x87.o")
     add_custom_command(
         OUTPUT ${X87_OBJ}
@@ -107,7 +135,7 @@ endif()
 add_library(nfs_core STATIC ${LIB_CPP_SOURCES})
 target_include_directories(nfs_core PRIVATE
     ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(nfs_core PRIVATE ${SDL3_MAIN_TARGET} ${SDL3_LIB_TARGET} OpenGL::GL)
+target_link_libraries(nfs_core PRIVATE ${SDL3_MAIN_TARGET} ${SDL3_LIB_TARGET} ${OPENGL_TARGET})
 
 # helper function for adding the game executables
 function(add_game_exe name)
@@ -137,12 +165,28 @@ function(add_game_exe name)
         ${game_src_dir}
         ${CMAKE_SOURCE_DIR}/src/${name}/disassembly
         ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(${name} PRIVATE ${SDL3_MAIN_TARGET} nfs_core ${SDL3_LIB_TARGET} OpenGL::GL)
+    target_link_libraries(${name} PRIVATE ${SDL3_MAIN_TARGET} nfs_core ${SDL3_LIB_TARGET} ${OPENGL_TARGET})
     if(WITH_PEDANTIC_FPU)
         target_compile_definitions(${name} PRIVATE WITH_PEDANTIC_FPU)
     endif()
     if(WITH_MMX)
         target_compile_definitions(${name} PRIVATE WITH_MMX)
+    endif()
+    if(TARGET_SWITCH)
+        target_sources(${name} PRIVATE
+            "${CMAKE_SOURCE_DIR}/src/lib/switch/nxvk_compat.c")
+        if(name STREQUAL "nfs2se")
+            set(game_title "Need for Speed II SE")
+        else()
+            set(game_title "Need for Speed III HP")
+        endif()
+        set(nacp_file "${CMAKE_CURRENT_BINARY_DIR}/${name}.nacp")
+        nx_generate_nacp(
+            OUTPUT "${nacp_file}"
+            NAME "${game_title}"
+            AUTHOR "PalindromicBreadLoaf"
+            VERSION "1.0.0")
+        nx_create_nro(${name} NACP "${nacp_file}")
     endif()
 endfunction()
 

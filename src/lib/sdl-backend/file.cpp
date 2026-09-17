@@ -17,9 +17,12 @@
 # define _write  write
 # define _unlink unlink
 # define _chsize ftruncate
-# define O_BINARY 0
+# ifndef O_BINARY
+#  define O_BINARY 0
+# endif
 #endif
 #include <algorithm>
+#include <cctype>
 #include <SDL3/SDL.h>
 
 
@@ -187,7 +190,10 @@ FileEnumerator::FileEnumerator(const char* filename)
         struct dirent* entry;
         while ((entry = readdir(d)) != nullptr)
         {
-            if (fnmatch(filePattern.c_str(), entry->d_name, FNM_CASEFOLD) == 0)
+            std::string entryName(entry->d_name);
+            std::transform(entryName.begin(), entryName.end(), entryName.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (fnmatch(filePattern.c_str(), entryName.c_str(), 0) == 0)
             {
                 std::string fullPath = dirPath + "/" + entry->d_name;
                 struct stat buffer;
@@ -395,4 +401,3 @@ x86::reg32 File::remove(const char *filename)
 }
 
 }
-

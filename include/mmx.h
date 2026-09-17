@@ -3,7 +3,11 @@
 
 #include <x86.h>
 //#include <intrin.h>
-#include <immintrin.h>
+#if defined(__aarch64__)
+# include <sse2neon.h>
+#else
+# include <immintrin.h>
+#endif
 
 namespace x86
 {

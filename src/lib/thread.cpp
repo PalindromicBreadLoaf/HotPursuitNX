@@ -6,7 +6,7 @@
 namespace win32
 {
 
-SDL_AtomicU32 s_threadCount = {1};
+SDL_AtomicInt s_threadCount = {1};
 thread_local x86::reg32 s_threadId = 1;
 
 Thread::Data::Data(WinApplication* app, x86::reg32 entryPoint, x86::reg32 parameter, x86::reg32 flags)
@@ -14,7 +14,7 @@ Thread::Data::Data(WinApplication* app, x86::reg32 entryPoint, x86::reg32 parame
     ,   m_entryPoint(entryPoint)
     ,   m_parameter(parameter)
     ,   m_flags(flags)
-    ,   m_threadId(1 + SDL_AddAtomicU32(&s_threadCount, 1))
+    ,   m_threadId(1 + SDL_AddAtomicInt(&s_threadCount, 1))
 {
 }
 
@@ -107,4 +107,3 @@ int Thread::run(void* data)
 }
 
 }
-

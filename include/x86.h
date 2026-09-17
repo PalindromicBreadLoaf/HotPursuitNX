@@ -8,6 +8,9 @@
 # define __restrict__ __restrict
 # define NFS2_ASSERT(x)         \
     if (! (x)) __debugbreak()
+#elif defined(__aarch64__)
+# define NFS2_ASSERT(x)         \
+    if (! (x)) asm volatile("brk #0")
 #else
 # define NFS2_ASSERT(x)         \
     if (! (x)) asm("int3")

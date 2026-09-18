@@ -185,14 +185,9 @@ void Renderer::unlock(x86::reg32 index)
 void Renderer::swap()
 {
     setCurrent();
-    const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
     SDL_GL_SetSwapInterval(1);
     m_currentBuffer = 1 - m_currentBuffer;
-    for (int i = 0; i < (mode ? (int)(mode->refresh_rate / 30) : 2); ++i)
-    {
-        // We enabled vsync and now render until we have a refresh rate of 30
-        update();
-    }
+    update();
     clearCurrent();
 }
 

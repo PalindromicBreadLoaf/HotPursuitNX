@@ -194,10 +194,12 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         state->rgdwPOV[1] = -1;
         state->rgdwPOV[2] = -1;
         state->rgdwPOV[3] = -1;
+#ifndef __SWITCH__
         for (int button = 0; button < 16; ++button)
         {
             state->rgbButtons[button] = (gpState.buttons & (1ll<<button)) ? 0x80 : 0x00;
         }
+#endif
     }
     app->lockContext(cpu);
     return 0;

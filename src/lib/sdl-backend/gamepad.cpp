@@ -19,9 +19,65 @@ void Input::poll()
 
 void Gamepad::updateKeys()
 {
+#ifdef __SWITCH__
+    static SDL_AtomicInt s_sampling;
+    if (!SDL_CompareAndSwapAtomicInt(&s_sampling, 0, 1))
+        return;
+#endif
+
     if (s_gp1)
     {
         SDL_UpdateJoysticks();
+#ifdef __SWITCH__
+        GamepadState state = s_gp1->getState();
+        SDL_Event event = {};
+
+        for (x86::reg32 button = 0; button < 64; ++button)
+        {
+            x86::reg64 bMask = 1ll << button;
+            if ((s_state.buttons & bMask) != (state.buttons & bMask))
+            {
+                event.type = state.buttons & bMask ? SDL_EVENT_JOYSTICK_BUTTON_DOWN : SDL_EVENT_JOYSTICK_BUTTON_UP;
+                event.jbutton.which = 0;
+                event.jbutton.button = button;
+                event.jbutton.down = !!(state.buttons & bMask);
+                SDL_PushEvent(&event);
+            }
+        }
+        s_state.buttons = state.buttons;
+
+        if (s_kbPoll == 0)
+        {
+            for (x86::reg32 axis = 0; axis < 10; ++axis)
+            {
+                if (state.axes[axis] != s_state.axes[axis])
+                {
+                    event.type = SDL_EVENT_JOYSTICK_AXIS_MOTION;
+                    event.jaxis.which = 0;
+                    event.jaxis.axis = axis;
+                    event.jaxis.value = state.axes[axis];
+                    SDL_PushEvent(&event);
+                }
+                s_state.axes[axis] = state.axes[axis];
+            }
+        }
+        else
+        {
+            for (x86::reg32 axis = 0; axis < 10; ++axis)
+            {
+                if (s_state.axes[axis] != 0)
+                {
+                    event.type = SDL_EVENT_JOYSTICK_AXIS_MOTION;
+                    event.jaxis.which = 0;
+                    event.jaxis.axis = axis;
+                    event.jaxis.value = 0;
+                    SDL_PushEvent(&event);
+                    s_state.axes[axis] = 0;
+                }
+            }
+            s_kbPoll--;
+        }
+#else
         if (s_kbPoll == 0)
         {
             GamepadState state = s_gp1->getState();
@@ -69,7 +125,12 @@ void Gamepad::updateKeys()
             memset(&s_state, 0, sizeof(s_state));
             s_kbPoll--;
         }
+#endif
     }
+
+#ifdef __SWITCH__
+    SDL_SetAtomicInt(&s_sampling, 0);
+#endif
 }
 
 x86::reg32 Input::getButtonCount() const
@@ -137,4 +198,3 @@ GamepadState Gamepad::getState() const
 
 
 }
-

@@ -1,5 +1,8 @@
 #include <lib/window.h>
 #include <lib/thread.h>
+#ifdef __SWITCH__
+#include <lib/gamepad.h>
+#endif
 #include <SDL3/SDL.h>
 #include <cstring>
 
@@ -88,7 +91,20 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
     SDL_Event event;
     for (;;)
     {
-        if (SDL_WaitEvent(&event))
+#ifdef __SWITCH__
+        bool receivedEvent = SDL_WaitEventTimeout(&event, 8);
+#else
+        bool receivedEvent = SDL_WaitEvent(&event);
+#endif
+        if (!receivedEvent)
+        {
+#ifdef __SWITCH__
+            if (cpu.terminate)
+                return 0;
+            Gamepad::updateKeys();
+#endif
+        }
+        else
         {
             if (cpu.terminate)
                 return 0;
@@ -267,6 +283,92 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     {
                         if (event.jbutton.which == 0)
                         {
+#ifdef __SWITCH__
+                            SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
+                            BOOL sendCharacter = false;
+
+                            switch (event.jbutton.button)
+                            {
+                            case 0: /* A: handbrake */
+                                result->wParam = DWORD(SDLK_SPACE);
+                                scancode = SDL_SCANCODE_SPACE;
+                                sendCharacter = true;
+                                break;
+                            case 1: /* B: look behind */
+                                result->wParam = 'B';
+                                scancode = SDL_SCANCODE_B;
+                                break;
+                            case 2: /* X: cycle camera */
+                                result->wParam = 'C';
+                                scancode = SDL_SCANCODE_C;
+                                break;
+                            case 3: /* Y: horn/siren */
+                                result->wParam = 'H';
+                                scancode = SDL_SCANCODE_H;
+                                break;
+                            case 4: /* Left stick: reset car */
+                                result->wParam = 'R';
+                                scancode = SDL_SCANCODE_R;
+                                break;
+                            case 5: /* Right stick: spike strip */
+                                result->wParam = 'S';
+                                scancode = SDL_SCANCODE_S;
+                                break;
+                            case 6: /* L: back/pause */
+                                result->wParam = DWORD(SDLK_ESCAPE);
+                                scancode = SDL_SCANCODE_ESCAPE;
+                                sendCharacter = true;
+                                break;
+                            case 7: /* R: accept */
+                                result->wParam = DWORD(SDLK_RETURN);
+                                scancode = SDL_SCANCODE_RETURN;
+                                sendCharacter = true;
+                                break;
+                            case 8: /* ZL: brake/reverse */
+                                result->wParam = 0x28;
+                                scancode = SDL_SCANCODE_DOWN;
+                                break;
+                            case 9: /* ZR: accelerate */
+                                result->wParam = 0x26;
+                                scancode = SDL_SCANCODE_UP;
+                                break;
+                            case 10: /* Plus: shift up */
+                                result->wParam = 'A';
+                                scancode = SDL_SCANCODE_A;
+                                break;
+                            case 11: /* Minus: shift down */
+                                result->wParam = 'Z';
+                                scancode = SDL_SCANCODE_Z;
+                                break;
+                            case 12: /* D-pad left */
+                            case 16: /* Left stick left pseudo-button */
+                                result->wParam = 0x25;
+                                scancode = SDL_SCANCODE_LEFT;
+                                break;
+                            case 13: /* D-pad up */
+                            case 17: /* Left stick up pseudo-button */
+                                result->wParam = 0x26;
+                                scancode = SDL_SCANCODE_UP;
+                                break;
+                            case 14: /* D-pad right */
+                            case 18: /* Left stick right pseudo-button */
+                                result->wParam = 0x27;
+                                scancode = SDL_SCANCODE_RIGHT;
+                                break;
+                            case 15: /* D-pad down */
+                            case 19: /* Left stick down pseudo-button */
+                                result->wParam = 0x28;
+                                scancode = SDL_SCANCODE_DOWN;
+                                break;
+                            default:
+                                break;
+                            }
+
+                            if (scancode == SDL_SCANCODE_UNKNOWN)
+                                break;
+
+                            result->lParam = 1 | s_scancodeTable[scancode] << 16;
+#else
                             if (event.jbutton.button == 7)
                             {
                                 /* simulate Enter */
@@ -285,10 +387,15 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = DWORD(SDLK_SPACE);
                                 result->lParam = 1 | s_scancodeTable[SDL_SCANCODE_SPACE] << 16;
                             }
+#endif
                             result->message = event.jbutton.down ? WM_KEYDOWN : WM_KEYUP;
                             result->hWindow = event.user.windowID;
 
-                            if (event.jbutton.down)
+                            if (event.jbutton.down
+#ifdef __SWITCH__
+                                && sendCharacter
+#endif
+                            )
                             {
                                 SDL_Event event2;
                                 event2.type = g_wmCharEvent;

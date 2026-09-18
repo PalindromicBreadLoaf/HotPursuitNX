@@ -31,6 +31,26 @@ Also, be sure to place your extracted game data (see step 1) in `sdmc:/switch/nf
 and `sdmc:/switch/nfs3hp/` for their respective games. (The FeData and Gamedata
 folders should be beside the nro in that folder).
 
+## Controls
+
+The Switch controls are mapped to the original keyboard commands used by both games.
+
+| Switch control | Action |
+| --- | --- |
+| Left stick / D-pad | Steer |
+| ZR | Accelerate |
+| ZL | Brake/reverse |
+| A | Handbrake |
+| B | Look behind |
+| X | Cycle camera |
+| Y | Horn/siren |
+| L | Back/pause pause |
+| R | Confirm |
+| Plus | Shift up |
+| Minus | Shift down |
+| Left stick button | Reset car |
+| Right stick button | Lay spike strip (only nfs3) |
+
 ## Building from source
 
 ### Prerequisites

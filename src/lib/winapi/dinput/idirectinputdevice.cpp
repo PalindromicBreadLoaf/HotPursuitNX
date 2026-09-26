@@ -183,6 +183,18 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
     {
         NFS2_ASSERT(cbData == sizeof(DIJOYSTATE));
         DIJOYSTATE* state = reinterpret_cast<DIJOYSTATE*>(lpvData);
+#ifdef __SWITCH__
+        state->lX = 0x7fff;
+        state->lY = 0x7fff;
+        state->lZ = 0x7fff;
+        state->lRx = 0x7fff;
+        state->lRy = 0x7fff;
+        state->lRz = 0x7fff;
+        state->rgdwPOV[0] = -1;
+        state->rgdwPOV[1] = -1;
+        state->rgdwPOV[2] = -1;
+        state->rgdwPOV[3] = -1;
+#else
         GamepadState gpState = gamepad->getState();
         state->lX = 0x7fff + gpState.axes[0];
         state->lY = 0x7fff + gpState.axes[1];
@@ -194,7 +206,6 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         state->rgdwPOV[1] = -1;
         state->rgdwPOV[2] = -1;
         state->rgdwPOV[3] = -1;
-#ifndef __SWITCH__
         for (int button = 0; button < 16; ++button)
         {
             state->rgbButtons[button] = (gpState.buttons & (1ll<<button)) ? 0x80 : 0x00;

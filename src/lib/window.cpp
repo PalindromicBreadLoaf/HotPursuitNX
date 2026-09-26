@@ -17,6 +17,7 @@ Uint32 g_userEvent   = 0;
 Uint32 g_userEvent1  = 0;
 Uint32 g_userEvent2  = 0;
 Uint32 g_wmCharEvent = 0;
+bool g_isNFS3        = false;
 
 static struct CustomEventRegistrar
 {
@@ -289,20 +290,29 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 
                             switch (event.jbutton.button)
                             {
-                            case 0: /* A: handbrake */
+                            case 0: /* A: nitrous / accept */
+                                result->wParam = DWORD(SDLK_RETURN);
+                                scancode = SDL_SCANCODE_RETURN;
+                                sendCharacter = true;
+                                break;
+                            case 1: /* B: handbrake */
                                 result->wParam = DWORD(SDLK_SPACE);
                                 scancode = SDL_SCANCODE_SPACE;
                                 sendCharacter = true;
                                 break;
-                            case 1: /* B: look behind */
-                                result->wParam = 'B';
-                                scancode = SDL_SCANCODE_B;
+                            case 2: /* X: weapons/equipment (NFS3 spike strip) / cycle camera (NFS2) */
+                                if (g_isNFS3)
+                                {
+                                    result->wParam = 'S';
+                                    scancode = SDL_SCANCODE_S;
+                                }
+                                else
+                                {
+                                    result->wParam = 'C';
+                                    scancode = SDL_SCANCODE_C;
+                                }
                                 break;
-                            case 2: /* X: cycle camera */
-                                result->wParam = 'C';
-                                scancode = SDL_SCANCODE_C;
-                                break;
-                            case 3: /* Y: horn/siren */
+                            case 3: /* Y: weapons/equipment (horn/siren) */
                                 result->wParam = 'H';
                                 scancode = SDL_SCANCODE_H;
                                 break;
@@ -310,19 +320,18 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = 'R';
                                 scancode = SDL_SCANCODE_R;
                                 break;
-                            case 5: /* Right stick: spike strip */
-                                result->wParam = 'S';
-                                scancode = SDL_SCANCODE_S;
+                            case 5: /* Right stick: cycle camera */
+                                result->wParam = 'C';
+                                scancode = SDL_SCANCODE_C;
                                 break;
                             case 6: /* L: back/pause */
                                 result->wParam = DWORD(SDLK_ESCAPE);
                                 scancode = SDL_SCANCODE_ESCAPE;
                                 sendCharacter = true;
                                 break;
-                            case 7: /* R: accept */
-                                result->wParam = DWORD(SDLK_RETURN);
-                                scancode = SDL_SCANCODE_RETURN;
-                                sendCharacter = true;
+                            case 7: /* R: look behind */
+                                result->wParam = 'B';
+                                scancode = SDL_SCANCODE_B;
                                 break;
                             case 8: /* ZL: brake/reverse */
                                 result->wParam = 0x28;
@@ -332,9 +341,10 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = 0x26;
                                 scancode = SDL_SCANCODE_UP;
                                 break;
-                            case 10: /* Plus: shift up */
-                                result->wParam = 'A';
-                                scancode = SDL_SCANCODE_A;
+                            case 10: /* Plus: pause menu */
+                                result->wParam = DWORD(SDLK_ESCAPE);
+                                scancode = SDL_SCANCODE_ESCAPE;
+                                sendCharacter = true;
                                 break;
                             case 11: /* Minus: shift down */
                                 result->wParam = 'Z';
@@ -346,7 +356,6 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 scancode = SDL_SCANCODE_LEFT;
                                 break;
                             case 13: /* D-pad up */
-                            case 17: /* Left stick up pseudo-button */
                                 result->wParam = 0x26;
                                 scancode = SDL_SCANCODE_UP;
                                 break;
@@ -356,7 +365,6 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 scancode = SDL_SCANCODE_RIGHT;
                                 break;
                             case 15: /* D-pad down */
-                            case 19: /* Left stick down pseudo-button */
                                 result->wParam = 0x28;
                                 scancode = SDL_SCANCODE_DOWN;
                                 break;
@@ -449,6 +457,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             s_prevAxisValue = event.jaxis.value;
                             break;
                         }
+#ifndef __SWITCH__
                         if (event.jaxis.axis == 1)
                         {
                             static x86::sreg16 s_prevAxisValue = 0;
@@ -487,6 +496,24 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             s_prevAxisValue = event.jaxis.value;
                             break;
                         }
+#endif
+#ifdef __SWITCH__
+                        if (event.jaxis.axis == 3)
+                        {
+                            static bool s_prevLookBehind = false;
+                            bool lookBehind = (event.jaxis.value > 20000);
+                            if (lookBehind != s_prevLookBehind)
+                            {
+                                SDL_Event kevent;
+                                kevent.type = lookBehind ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+                                kevent.key.key = SDLK_B;
+                                kevent.key.scancode = SDL_SCANCODE_B;
+                                SDL_PushEvent(&kevent);
+                                s_prevLookBehind = lookBehind;
+                            }
+                            break;
+                        }
+#endif
                     }
                     break;
                 case SDL_EVENT_JOYSTICK_HAT_MOTION:

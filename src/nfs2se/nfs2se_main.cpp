@@ -1,5 +1,7 @@
 #include <SDL3/SDL_main.h>
 #include <lib/file.h>
+#include <lib/gamepad.h>
+#include <lib/window.h>
 #include <nfs2se.h>
 #include <cstdlib>
 #include <string>
@@ -43,6 +45,8 @@ int main(int argc, char* argv[])
     }
 #endif
     SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK);
+    win32::Gamepad::init();
+    win32::g_isNFS3 = false;
     {
         nfs2se::Application app(argv[0]);
         app.execute();

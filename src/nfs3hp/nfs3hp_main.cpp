@@ -1,6 +1,8 @@
 #include <SDL3/SDL_main.h>
 #include <lib/file.h>
+#include <lib/gamepad.h>
 #include <lib/registry.h>
+#include <lib/window.h>
 #include <nfs3hp.h>
 #include <cstdlib>
 #include <string>
@@ -45,6 +47,8 @@ int main(int argc, char* argv[])
     }
 #endif
     SDL_Init(SDL_INIT_EVENTS|SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_JOYSTICK);
+    win32::Gamepad::init();
+    win32::g_isNFS3 = true;
     {
         nfs3hp::Application app("nfs3.exe");
         app.addRegistryKey(win32::HKEY_LOCAL_MACHINE, "SOFTWARE\\Electronic Arts\\Need For Speed III", "3D Device Description", new win32::RegistryValue("3Dfx Voodoo 2"));

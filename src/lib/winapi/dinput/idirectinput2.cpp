@@ -52,7 +52,9 @@ HRESULT IDirectInput2::CreateDevice(WinApplication* app, x86::CPU& cpu,
     }
     else
     {
-        input = new Gamepad(rguid->Data3);
+        input = Gamepad::getInstance();
+        if (!input)
+            input = new Gamepad(rguid->Data3);
     }
     app->allocateResource(input);
     *lplpDirectInputDevice = Packed<IDirectInputDevice>(com::ComAlloc(app));
@@ -65,6 +67,7 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(dwFlags);
 
+#ifndef __SWITCH__
     static const GUID s_joystickGUID = { 0x4251809a, 0x67be, 0, "NFS PAD" };
     static const GUID s_driverGUID = { 0x4251809a, 0x67bf, 0xffff, "NFS PAD" };
     if (dwDevType == 4)
@@ -93,6 +96,13 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
                 break;
         }
     }
+#else
+    NFS2_USE(app);
+    NFS2_USE(cpu);
+    NFS2_USE(dwDevType);
+    NFS2_USE(lpCallback);
+    NFS2_USE(pvRef);
+#endif
     return 0;
 }
 

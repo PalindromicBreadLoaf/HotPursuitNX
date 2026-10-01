@@ -25,6 +25,11 @@ void Gamepad::updateKeys()
         return;
 #endif
 
+    if (!s_gp1)
+    {
+        init();
+    }
+
     if (s_gp1)
     {
         SDL_UpdateJoysticks();
@@ -152,15 +157,35 @@ Gamepad::Gamepad(x86::reg32 gamepadIndex)
         m_joystick = SDL_OpenJoystick(ids[gamepadIndex]);
     SDL_free(ids);
     SDL_SetJoystickEventsEnabled(false);
-    if (!s_gp1)
+    if (!s_gp1 && m_joystick)
         s_gp1 = this;
 }
 
 Gamepad::~Gamepad()
 {
-    if (s_gp1)
+    if (s_gp1 == this)
         s_gp1 = nullptr;
-    SDL_CloseJoystick(m_joystick);
+    if (m_joystick)
+        SDL_CloseJoystick(m_joystick);
+}
+
+void Gamepad::init()
+{
+    if (!s_gp1)
+    {
+        int count = 0;
+        SDL_JoystickID *ids = SDL_GetJoysticks(&count);
+        if (ids && count > 0)
+        {
+            s_gp1 = new Gamepad(0);
+        }
+        SDL_free(ids);
+    }
+}
+
+Gamepad* Gamepad::getInstance()
+{
+    return s_gp1;
 }
 
 x86::reg32 Gamepad::getCount()
@@ -173,18 +198,20 @@ x86::reg32 Gamepad::getCount()
 
 x86::reg32 Gamepad::getButtonCount() const
 {
-    return SDL_GetNumJoystickButtons(m_joystick);
+    return m_joystick ? SDL_GetNumJoystickButtons(m_joystick) : 0;
 }
 
 x86::reg32 Gamepad::getAxesCount() const
 {
-    return SDL_GetNumJoystickAxes(m_joystick);
+    return m_joystick ? SDL_GetNumJoystickAxes(m_joystick) : 0;
 }
 
 GamepadState Gamepad::getState() const
 {
     GamepadState result;
     memset(&result, 0, sizeof(result));
+    if (!m_joystick)
+        return result;
     for (x86::reg32 button = 0; button < getButtonCount(); ++button)
     {
         result.buttons |= (SDL_GetJoystickButton(m_joystick, button) ? 1 : 0) << button;

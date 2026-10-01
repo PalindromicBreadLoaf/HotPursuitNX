@@ -10,7 +10,11 @@ UINT joyGetNumDevs(WinApplication* app, x86::CPU& cpu)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
+#ifdef __SWITCH__
+    return 0;
+#else
     return Gamepad::getCount();
+#endif
 }
 
 MMRESULT timeBeginPeriod(WinApplication* app, x86::CPU& cpu,

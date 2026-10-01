@@ -1,3 +1,7 @@
-build
+build*
 .vscode
 **/*.pyc
+*.elf
+*.nacp
+*.nro
+*.zip

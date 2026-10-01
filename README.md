@@ -40,19 +40,19 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 
 | Switch control | Action |
 | --- | --- |
-| Left stick / D-pad | Directional driving controls / menu navigation |
+| Left stick / D-pad | Steering / menu navigation |
 | ZR | Accelerate |
-| ZL | Brake/reverse |
-| A | Handbrake |
-| B | Look behind |
-| X | Cycle camera |
-| Y | Horn/siren |
-| L | Back/pause |
-| R | Confirm |
-| Plus | Shift up |
-| Minus | Shift down |
-| Left stick button | Reset car |
-| Right stick button | Lay spike strip (only nfs3) |
+| ZL | Brake / reverse |
+| B | Handbrake |
+| A | Nitrous / Confirm (menus) |
+| X | Weapons / Equipment: Spike strip (NFS3) / Cycle camera (NFS2) |
+| Y | Weapons / Equipment: Horn / siren |
+| Right stick click (R3) | Change camera view |
+| Right stick down / R | Look behind |
+| Left stick click (L3) | Reset car |
+| Plus (+) | Pause menu |
+| L | Back (menus) / Pause |
+| Minus (-) | Shift down (manual) |
 
 ## Building from source
 

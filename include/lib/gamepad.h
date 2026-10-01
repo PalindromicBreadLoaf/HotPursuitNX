@@ -51,6 +51,8 @@ public:
 
     GamepadState getState() const;
     static void updateKeys();
+    static void init();
+    static Gamepad* getInstance();
 private:
     SDL_Joystick* m_joystick;
 };
